@@ -1,19 +1,30 @@
 import { config } from './config.js';
 
+/**
+ * Format a user mention that works for all users (with or without username)
+ * Uses HTML format: <a href="tg://user?id=123">Name</a>
+ */
+export function formatMention(userId, displayName, username) {
+  if (username) {
+    return `@${username}`;
+  }
+  return `<a href="tg://user?id=${userId}">${displayName}</a>`;
+}
+
 export const messages = {
-  welcome: (userName) => {
+  welcome: (userMention) => {
     const introLocation = config.groups.introTopicId 
       ? 'in the 👋 Introductions topic' 
       : 'right here in this group';
     
-    return `👋 Welcome to Superteam MY, ${userName}!
+    return `👋 Welcome to Superteam MY, ${userMention}!
 
 To get started, please introduce yourself ${introLocation} using this format 👇
 
 This helps everyone get context and makes collaboration easier.
 
 ━━━━━━━━━━━━━━━━━━━━━━
-📝 *Intro format:*
+📝 <b>Intro format:</b>
 
 • Who are you & what do you do?
 • Where are you based?
@@ -45,12 +56,12 @@ Together with Han, we are Co-Leads of Superteam Malaysia!
 
 Excited to build alongside all of you — feel free to reach out anytime 🙌`,
 
-  introRequired: (userName) => {
+  introRequired: (userMention) => {
     const introLocation = config.groups.introTopicId
       ? 'in the 👋 Introductions topic'
       : 'in the group';
 
-    return `Hey ${userName}! 👋
+    return `Hey ${userMention}! 👋
 
 Please introduce yourself ${introLocation} first before participating.
 
@@ -59,13 +70,13 @@ This helps everyone know who you are and how to collaborate with you!
 Use /help to see the intro format or /example to see a sample.`;
   },
 
-  introCompleted: (userName) => `🎉 Thanks for introducing yourself, ${userName}!
+  introCompleted: (userMention) => `🎉 Thanks for introducing yourself, ${userMention}!
 
 You can now fully participate in the Superteam MY group. Welcome aboard!`,
 
   alreadyIntroduced: `You've already introduced yourself! Feel free to participate in the group.`,
 
-  reminderDM: (userName) => `Hey ${userName}! 👋
+  reminderDM: (userMention) => `Hey ${userMention}! 👋
 
 Just a friendly reminder — you haven't introduced yourself yet.
 

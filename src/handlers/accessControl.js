@@ -1,6 +1,6 @@
 import { config } from '../config.js';
 import { getUser, updateLastReminded } from '../database.js';
-import { messages } from '../messages.js';
+import { messages, formatMention } from '../messages.js';
 import { logger } from '../logger.js';
 import { isValidIntro } from '../validation.js';
 
@@ -79,13 +79,14 @@ export function setupAccessControlHandler(bot) {
       const shouldRemind = shouldSendReminder(userData);
 
       if (shouldRemind) {
-        const userName = user.first_name || user.username || 'there';
+        const displayName = user.first_name || 'there';
+        const userMention = formatMention(user.id, displayName, user.username);
         
         try {
           await ctx.telegram.sendMessage(
             user.id,
-            messages.introRequired(userName),
-            { parse_mode: 'Markdown' }
+            messages.introRequired(userMention),
+            { parse_mode: 'HTML' }
           );
           updateLastReminded(user.id);
           logger.info('Sent intro reminder DM', { userId: user.id });
@@ -95,14 +96,14 @@ export function setupAccessControlHandler(bot) {
           });
           
           try {
-            const reminderOptions = { parse_mode: 'Markdown' };
+            const reminderOptions = { parse_mode: 'HTML' };
             if (config.groups.introTopicId) {
               reminderOptions.message_thread_id = config.groups.introTopicId;
             }
 
             const reminder = await ctx.telegram.sendMessage(
               config.groups.mainGroupId,
-              messages.introRequired(userName),
+              messages.introRequired(userMention),
               reminderOptions
             );
             updateLastReminded(user.id);

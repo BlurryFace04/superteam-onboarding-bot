@@ -1,9 +1,12 @@
 import { config } from '../config.js';
 import { upsertUser, isUserIntroduced } from '../database.js';
-import { messages } from '../messages.js';
+import { messages, formatMention } from '../messages.js';
 import { logger } from '../logger.js';
 
-async function sendWelcomeMessage(telegram, userId, userName) {
+async function sendWelcomeMessage(telegram, user) {
+  const userId = user.id;
+  const displayName = user.first_name || 'there';
+  const userMention = formatMention(userId, displayName, user.username);
   const sendOptions = {};
   if (config.groups.introTopicId) {
     sendOptions.message_thread_id = config.groups.introTopicId;
@@ -11,14 +14,14 @@ async function sendWelcomeMessage(telegram, userId, userName) {
 
   logger.info('Attempting to send welcome message', { userId, topicId: config.groups.introTopicId });
 
-  const welcomeText = messages.welcome(userName);
+  const welcomeText = messages.welcome(userMention);
   
-  // Try with Markdown first, fall back to plain text
+  // Use HTML parse mode for user mentions to work
   try {
     const msg = await telegram.sendMessage(
       config.groups.mainGroupId,
       welcomeText,
-      { ...sendOptions, parse_mode: 'Markdown' }
+      { ...sendOptions, parse_mode: 'HTML' }
     );
     logger.info('Welcome message sent', { userId, messageId: msg.message_id });
     
@@ -102,8 +105,7 @@ export function setupNewMemberHandler(bot) {
         await restrictUserInMainGroup(ctx, user.id);
       }
 
-      const userName = user.first_name || user.username || 'there';
-      await sendWelcomeMessage(ctx.telegram, user.id, userName);
+      await sendWelcomeMessage(ctx.telegram, user);
 
     } catch (error) {
       logger.error('Error handling new member (chat_member)', { error: error.message });
@@ -138,8 +140,7 @@ export function setupNewMemberHandler(bot) {
             await restrictUserInMainGroup(ctx, user.id);
           }
           
-          const userName = user.first_name || user.username || 'there';
-          await sendWelcomeMessage(ctx.telegram, user.id, userName);
+          await sendWelcomeMessage(ctx.telegram, user);
         }
       }
     } catch (error) {

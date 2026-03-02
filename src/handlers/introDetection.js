@@ -1,7 +1,7 @@
 import { config } from '../config.js';
 import { getUser, markUserIntroduced, isUserIntroduced, upsertUser } from '../database.js';
 import { isValidIntro } from '../validation.js';
-import { messages } from '../messages.js';
+import { messages, formatMention } from '../messages.js';
 import { logger } from '../logger.js';
 import { unrestrictUserInMainGroup } from './newMember.js';
 
@@ -29,7 +29,8 @@ async function processIntro(ctx, messageText) {
     lastName: user.last_name,
   });
 
-  const userName = user.first_name || 'there';
+  const displayName = user.first_name || 'there';
+  const userMention = formatMention(user.id, displayName, user.username);
 
   // Ignore bot commands - they shouldn't count as intro attempts
   if (messageText.startsWith('/')) {
@@ -42,8 +43,8 @@ async function processIntro(ctx, messageText) {
     logger.info('Non-text message in intro topic', { userId: user.id });
     try {
       await ctx.reply(
-        `Hey ${userName}! Please write a text introduction — photos, stickers, and media alone don't count.\n\nUse /example to see the format!`,
-        { reply_to_message_id: ctx.message.message_id }
+        `Hey ${userMention}! Please write a text introduction — photos, stickers, and media alone don't count.\n\nUse /example to see the format!`,
+        { reply_to_message_id: ctx.message.message_id, parse_mode: 'HTML' }
       );
     } catch (e) {
       logger.warn('Could not send media feedback', { error: e.message });
@@ -67,8 +68,8 @@ async function processIntro(ctx, messageText) {
     
     try {
       await ctx.reply(
-        `Hey ${userName}! Your message is a bit short (${messageText.length}/${config.validation.minIntroLength} characters).\n\nPlease include:\n• Who are you & what do you do?\n• Where are you based?\n• One fun fact about you\n• How are you looking to contribute to Superteam MY?\n\nUse /example to see a sample intro!`,
-        { reply_to_message_id: ctx.message.message_id }
+        `Hey ${userMention}! Your message is a bit short (${messageText.length}/${config.validation.minIntroLength} characters).\n\nPlease include:\n• Who are you & what do you do?\n• Where are you based?\n• One fun fact about you\n• How are you looking to contribute to Superteam MY?\n\nUse /example to see a sample intro!`,
+        { reply_to_message_id: ctx.message.message_id, parse_mode: 'HTML' }
       );
     } catch (e) {
       logger.warn('Could not send intro feedback', { error: e.message });
@@ -84,8 +85,8 @@ async function processIntro(ctx, messageText) {
 
   try {
     await ctx.reply(
-      `🎉 Welcome aboard, ${userName}! Thanks for introducing yourself. You can now participate freely in the group!`,
-      { reply_to_message_id: ctx.message.message_id }
+      `🎉 Welcome aboard, ${userMention}! Thanks for introducing yourself. You can now participate freely in the group!`,
+      { reply_to_message_id: ctx.message.message_id, parse_mode: 'HTML' }
     );
   } catch (e) {
     logger.debug('Could not reply with approval', { error: e.message });
@@ -137,12 +138,16 @@ export function setupIntroDetectionHandler(bot) {
       markUserIntroduced(user.id, msg.message_id);
       await unrestrictUserInMainGroup(ctx.telegram, user.id);
 
-      const userName = user.first_name || user.username || 'there';
+      const displayName = user.first_name || 'there';
+      const userMention = formatMention(user.id, displayName, user.username);
       try {
         await ctx.telegram.sendMessage(
           config.groups.mainGroupId,
-          `🎉 Welcome aboard, ${userName}! Thanks for introducing yourself. You can now participate freely in the group!`,
-          config.groups.introTopicId ? { message_thread_id: config.groups.introTopicId } : {}
+          `🎉 Welcome aboard, ${userMention}! Thanks for introducing yourself. You can now participate freely in the group!`,
+          { 
+            ...(config.groups.introTopicId ? { message_thread_id: config.groups.introTopicId } : {}),
+            parse_mode: 'HTML'
+          }
         );
       } catch (e) {
         logger.debug('Could not send approval after edit', { error: e.message });
