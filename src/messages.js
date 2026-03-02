@@ -11,6 +11,10 @@ export function formatMention(userId, displayName, username) {
   return `<a href="tg://user?id=${userId}">${displayName}</a>`;
 }
 
+function formatIntroFields() {
+  return config.introFormat.map(field => `• ${field}`).join('\n');
+}
+
 export const messages = {
   welcome: (userMention) => {
     const introLocation = config.groups.introTopicId 
@@ -26,10 +30,7 @@ This helps everyone get context and makes collaboration easier.
 ━━━━━━━━━━━━━━━━━━━━━━
 📝 <b>Intro format:</b>
 
-• Who are you & what do you do?
-• Where are you based?
-• One fun fact about you
-• How are you looking to contribute to Superteam MY?
+${formatIntroFields()}
 
 ━━━━━━━━━━━━━━━━━━━━━━
 

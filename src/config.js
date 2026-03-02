@@ -23,6 +23,24 @@ function parseAdminIds(value) {
   return value.split(',').map(id => parseInt(id.trim(), 10)).filter(id => !isNaN(id));
 }
 
+const DEFAULT_INTRO_FORMAT = [
+  'Who are you & what do you do?',
+  'Where are you based?',
+  'One fun fact about you',
+  'How are you looking to contribute to Superteam MY?',
+];
+
+function parseIntroFormat(value) {
+  if (!value || value.trim() === '') return DEFAULT_INTRO_FORMAT;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    return DEFAULT_INTRO_FORMAT;
+  } catch {
+    return DEFAULT_INTRO_FORMAT;
+  }
+}
+
 export const config = {
   bot: {
     token: requireEnv('BOT_TOKEN'),
@@ -46,6 +64,8 @@ export const config = {
     minIntroLength: parseIntOrDefault(process.env.MIN_INTRO_LENGTH, 50),
     enableFormatValidation: parseBool(process.env.ENABLE_FORMAT_VALIDATION, false),
   },
+
+  introFormat: parseIntroFormat(process.env.INTRO_FORMAT),
   
   admin: {
     userIds: parseAdminIds(process.env.ADMIN_USER_IDS),

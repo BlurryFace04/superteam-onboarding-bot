@@ -38,14 +38,12 @@ The bot sends messages directly in the intro topic instead of attempting DMs, si
 ### Duplicate Join Events
 Telegram can fire both `chat_member` and `new_chat_members` events for the same join. The bot handles both gracefully — if the welcome message was already sent by one handler, the database state prevents duplicate processing.
 
+### Users Who Joined Before Bot Was Added
+Users who are not in the bot's database (i.e., they joined before the bot was added) are "grandfathered in" and can participate freely without introducing themselves. Only users who the bot explicitly saw join are required to introduce themselves.
+
 ---
 
 ## Potential Edge Cases (Not Yet Handled)
-
-### ~~Users Who Joined Before Bot Was Added~~ (Now Handled)
-~~If the bot is added to a group that already has members, those existing members are not tracked.~~
-
-**Update:** This is now handled. Users who are not in the bot's database (i.e., they joined before the bot was added) are "grandfathered in" and can participate freely without introducing themselves. Only users who the bot explicitly saw join are required to introduce themselves.
 
 ### User Banned and Unbanned
 If a user is banned and later unbanned, Telegram may not fire a `new_chat_members` event. The user might be able to rejoin without the bot detecting them.

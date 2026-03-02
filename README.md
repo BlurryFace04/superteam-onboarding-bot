@@ -5,36 +5,43 @@ A Telegram bot that ensures new members introduce themselves before participatin
 ## Features
 
 ### Core Functionality
-- **New Member Detection**: Automatically detects when users join the group
-- **Welcome Messages**: Sends personalized welcome message with intro format guidelines
-- **Intro Verification**: Monitors the group for member introductions
-- **Access Control**: Restricts messaging until intro is completed
+- **New Member Detection**: Automatically detects when users join the group via `chat_member` and `new_chat_members` events
+- **Welcome Messages**: Sends personalized welcome message with intro format guidelines, tagging the user with `@username`
+- **Intro Verification**: Monitors the intro topic/channel for valid introductions with configurable validation
+- **Access Control**: Auto-deletes messages from non-introduced users and reminds them to introduce themselves
 - **Auto-unrestrict**: Grants full permissions once a valid intro is posted
+- **Auto-pin**: Pins the welcome message in the intro topic for visibility
 
 ### Setup Modes
-- **Single Group Mode** (Default): Users post intros in the same group - simpler setup!
-- **Two Group Mode** (Optional): Separate intro channel for introductions
+- **Topics Mode** (Recommended): Uses a dedicated Introductions topic within the same supergroup
+- **Single Group Mode**: Users post intros in the same group
+- **Two Group Mode**: Separate intro channel for introductions
 
 ### Admin Features
-- Reset user intro status
-- Manually approve users
-- View user status details
-- Bot statistics dashboard
-- List pending introductions
+| Command | Description |
+|---------|-------------|
+| `/admin_help` | Show admin commands |
+| `/admin_reset <user_id>` | Reset a user's intro status |
+| `/admin_approve <user_id>` | Manually approve a user |
+| `/admin_status <user_id>` | View user's detailed status |
+| `/admin_stats` | View bot statistics |
+| `/admin_list_pending` | List users awaiting intro |
+| `/admin_reset_db` | Reset entire database |
 
-### Additional Features
-- SQLite persistent storage
-- Configurable intro validation
-- Rate-limited reminders
-- Docker deployment support
-- Comprehensive logging
+### Bonus Features
+- **Persistent storage**: SQLite database with Railway volume support
+- **Configurable intro format**: Customize intro fields via `INTRO_FORMAT` env var
+- **Auto-pin intro message**: Welcome message is pinned in the intro topic
+- **Heuristic validation**: Optional keyword-based validation to ensure intros are genuine
+- **User tagging**: All bot messages mention users with clickable `@username` or name links
+- **Graceful edge case handling**: Leave & rejoin, deleted intro, edited messages, media-only messages, service messages
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 18+
 - A Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
-- Admin access to your Telegram group
+- Admin access to your Telegram group (must be a Supergroup with Topics enabled)
 
 ### 1. Create Your Bot
 
@@ -42,43 +49,25 @@ A Telegram bot that ensures new members introduce themselves before participatin
 2. Send `/newbot` and follow the prompts
 3. Copy the bot token
 
-### 2. Get Group/Channel IDs
+### 2. Get Group & Topic IDs
 
 1. Add [@RawDataBot](https://t.me/rawdatabot) to your Telegram group
-2. Send any message in the group
-3. The bot will reply with "Your chat ID is -XXXXXXXXX"
-4. Copy that chat ID
-
-**For single group setup (recommended):**
-- You only need the MAIN_GROUP_ID
-- Leave INTRO_CHANNEL_ID blank
-
-**For two-group setup:**
-- Get the ID for both your main group and intro channel
-- Set both MAIN_GROUP_ID and INTRO_CHANNEL_ID
+2. Send any message — the bot replies with your **chat ID** (e.g., `-1003502830299`)
+3. Run `node scripts/get-topic-id.js` to find your **Introductions topic ID**
 
 ### 3. Configure Bot Permissions
 
-**Important**: The bot needs admin rights in your group:
-
-In your **Main Group**:
-- Add the bot as admin
-- Enable "Delete messages"
-- Enable "Restrict members"
-
-(If using two-group mode, give the bot read access in the intro channel as well)
+Add the bot as an **admin** in your group with these permissions:
+- **Delete messages**
+- **Restrict members**
+- **Pin messages**
 
 ### 4. Installation
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd superteam-intro-gatekeeper-bot
-
-# Install dependencies
+git clone https://github.com/BlurryFace04/superteam-onboarding-bot.git
+cd superteam-onboarding-bot
 npm install
-
-# Copy environment file
 cp .env.example .env
 ```
 
@@ -87,21 +76,21 @@ cp .env.example .env
 Edit `.env` with your settings:
 
 ```env
-# Required
 BOT_TOKEN=your_bot_token_here
 MAIN_GROUP_ID=-100xxxxxxxxxx
-INTRO_CHANNEL_ID=-100xxxxxxxxxx
+INTRO_TOPIC_ID=12
 
 # Optional
 DELETE_UNAUTHORIZED_MESSAGES=true
 MIN_INTRO_LENGTH=50
-ADMIN_USER_IDS=123456789,987654321
+ENABLE_FORMAT_VALIDATION=true
+ADMIN_USER_IDS=123456789
 ```
 
 ### 6. Run the Bot
 
 ```bash
-# Development
+# Development (auto-restart on file changes)
 npm run dev
 
 # Production
@@ -110,55 +99,56 @@ npm start
 
 ## Docker Deployment
 
-### Using Docker Compose (Recommended)
-
 ```bash
-# Create .env file first
 cp .env.example .env
 # Edit .env with your settings
 
-# Build and run
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop
-docker-compose down
+docker compose up -d        # Start
+docker compose logs -f      # View logs
+docker compose down          # Stop
 ```
 
-### Using Docker directly
+## Railway Deployment
 
-```bash
-# Build
-docker build -t superteam-intro-bot .
-
-# Run
-docker run -d \
-  --name superteam-intro-bot \
-  --env-file .env \
-  -v bot-data:/app/data \
-  superteam-intro-bot
-```
+1. Push code to GitHub
+2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub
+3. Add environment variables (`BOT_TOKEN`, `MAIN_GROUP_ID`, `INTRO_TOPIC_ID`)
+4. Add a **Volume** with mount path `/app/data` for persistent database storage
+5. Deploy — auto-deploys on every push to `main`
 
 ## Configuration Reference
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `BOT_TOKEN` | Yes | - | Telegram bot token from BotFather |
-| `MAIN_GROUP_ID` | Yes | - | ID of your Superteam group |
-| `INTRO_CHANNEL_ID` | No | (same as main) | Separate intro channel ID (leave blank for single-group mode) |
+| `BOT_TOKEN` | Yes | — | Telegram bot token from BotFather |
+| `MAIN_GROUP_ID` | Yes | — | ID of your Superteam supergroup |
+| `INTRO_TOPIC_ID` | No | — | Topic ID for Introductions (recommended) |
+| `INTRO_CHANNEL_ID` | No | same as main | Separate intro channel ID |
+| `INTRO_FORMAT` | No | See below | JSON array of intro format fields |
 | `DELETE_UNAUTHORIZED_MESSAGES` | No | `true` | Delete messages from non-introduced users |
 | `REMINDER_INTERVAL_HOURS` | No | `24` | Hours between reminder messages |
 | `MIN_INTRO_LENGTH` | No | `50` | Minimum characters for valid intro |
-| `ENABLE_FORMAT_VALIDATION` | No | `false` | Use heuristic format checking |
-| `ADMIN_USER_IDS` | No | - | Comma-separated admin user IDs |
+| `ENABLE_FORMAT_VALIDATION` | No | `false` | Require self-introduction keywords |
+| `ADMIN_USER_IDS` | No | — | Comma-separated admin user IDs |
 | `DATABASE_PATH` | No | `./data/bot.db` | SQLite database location |
 | `LOG_LEVEL` | No | `info` | Logging level (debug/info/warn/error) |
 
-## Commands
+### Configurable Intro Format
 
-### User Commands
+Default format fields (used when `INTRO_FORMAT` is not set):
+
+```json
+["Who are you & what do you do?", "Where are you based?", "One fun fact about you", "How are you looking to contribute to Superteam MY?"]
+```
+
+To customize, set `INTRO_FORMAT` in your `.env`:
+
+```env
+INTRO_FORMAT=["Your name and role","Your location","A fun fact","How you want to contribute"]
+```
+
+## User Commands
+
 | Command | Description |
 |---------|-------------|
 | `/start` | Get welcome message and intro format |
@@ -166,116 +156,100 @@ docker run -d \
 | `/example` | See an example introduction |
 | `/status` | Check your introduction status |
 
-### Admin Commands
-| Command | Description |
-|---------|-------------|
-| `/admin_help` | Show admin commands |
-| `/admin_reset <user_id>` | Reset user's intro status |
-| `/admin_approve <user_id>` | Manually approve a user |
-| `/admin_status <user_id>` | View user's detailed status |
-| `/admin_stats` | View bot statistics |
-| `/admin_list_pending` | List users awaiting intro |
-
 ## How It Works
-
-### Single Group Mode (Default)
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   User Joins    │────▶│  Bot Restricts  │────▶│  Welcome DM     │
-│   The Group     │     │  User Perms     │     │  Sent           │
+│   User Joins    │────▶│  Bot Records    │────▶│  Welcome Msg    │
+│   The Group     │     │  New Member     │     │  Sent & Pinned  │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                         │
                                                         ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   Full Access   │◀────│  Unrestrict     │◀────│  User Posts     │
-│   Granted       │     │  User           │     │  Intro in Group │
+│   Full Access   │◀────│  Bot Validates  │◀────│  User Posts     │
+│   Granted 🎉    │     │  & Approves     │     │  Intro in Topic │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
 1. **User joins** the Superteam group
-2. **Bot restricts** the user from sending messages
-3. **Welcome message** is sent via DM (or in-group if DM fails)
-4. **User posts introduction** in the same group (at least 50 characters)
-5. **Bot validates** the intro meets minimum requirements
-6. **User is unrestricted** and can participate fully
-7. **Intro stays visible** for everyone to see and reference
-
-## Intro Format
-
-The bot guides users to introduce themselves with:
-
-- Who you are & what you do
-- Where you're based
-- One fun fact about you
-- How you're looking to contribute to Superteam MY
+2. **Bot sends** a personalized welcome message tagging the user, pinned in the intro topic
+3. **User posts introduction** in the Introductions topic
+4. **Bot validates** the intro (length + optional keyword check)
+5. **User is approved** and can participate freely across all topics
 
 ## Edge Cases Handled
 
-- **Rejoining members**: Previously introduced users retain their status
-- **DM blocked**: Falls back to in-group messages (auto-deleted after 60s for welcome, permanent for approval)
-- **Admin bypass**: Group admins are never restricted
-- **Bot restart**: All data persists in SQLite database
-- **Deleted intros**: User remains approved once marked complete
-- **Short messages**: Only messages with 50+ characters trigger intro validation
-- **Single group mode**: Intro messages allowed through, then validated
+| Edge Case | How It's Handled |
+|-----------|-----------------|
+| **Leave & rejoin** | User retains intro status from database |
+| **Deleted intro** | User stays approved; admin can reset via `/admin_reset` |
+| **Bot restart** | All data persists in SQLite database |
+| **Admin bypass** | Group admins/creators are never restricted |
+| **Service messages** | Join/leave/pin notifications are not deleted |
+| **Media-only intro** | Bot asks for a text introduction |
+| **Bot commands in intro topic** | Commands like `/example` don't count as intro attempts |
+| **Edited messages** | If a user edits their message to meet requirements, it's accepted |
+| **Markdown failures** | Falls back to plain text if formatting fails |
+| **Users joined before bot** | Grandfathered in — not restricted |
+| **Duplicate join events** | Handled gracefully via database upsert |
 
 ## Project Structure
 
 ```
-superteam-intro-gatekeeper-bot/
+superteam-onboarding-bot/
 ├── src/
-│   ├── index.js           # Main entry point
-│   ├── config.js          # Configuration management
-│   ├── database.js        # SQLite operations
-│   ├── messages.js        # Bot message templates
-│   ├── validation.js      # Intro validation logic
-│   ├── logger.js          # Logging utility
+│   ├── index.js              # Entry point — initializes bot and handlers
+│   ├── config.js             # Configuration from environment variables
+│   ├── database.js           # SQLite operations (users, intro status)
+│   ├── messages.js           # All bot message templates
+│   ├── validation.js         # Intro validation (length + keyword heuristic)
+│   ├── logger.js             # Structured logging utility
 │   └── handlers/
-│       ├── index.js       # Handler exports
-│       ├── newMember.js   # New member detection
-│       ├── introDetection.js  # Intro channel monitoring
-│       ├── accessControl.js   # Message restriction
-│       └── commands.js    # Bot commands
-├── data/                  # SQLite database (gitignored)
-├── .env.example           # Environment template
+│       ├── index.js          # Handler registration
+│       ├── newMember.js      # New member detection + welcome message
+│       ├── introDetection.js # Intro topic monitoring + validation
+│       ├── accessControl.js  # Message restriction enforcement
+│       └── commands.js       # User + admin commands
+├── scripts/
+│   ├── get-ids.js            # Utility to get chat/user IDs
+│   ├── get-topic-id.js       # Utility to get topic IDs
+│   └── reset-db.js           # Database reset script
+├── docs/
+│   ├── EDGE_CASES.md         # Detailed edge case documentation
+│   ├── GETTING_IDS.md        # Guide for obtaining Telegram IDs
+│   └── QUICK_START.md        # Step-by-step setup guide
+├── .env.example              # Environment variable template
+├── Dockerfile                # Docker container configuration
+├── docker-compose.yml        # Docker Compose for local deployment
 ├── package.json
-├── Dockerfile
-├── docker-compose.yml
 └── README.md
 ```
 
 ## Troubleshooting
 
 ### Bot isn't detecting new members
-- Ensure the bot is an admin in the group
-- Check that `chat_member` updates are enabled (the bot does this automatically)
-- Verify the group ID is correct and negative
+- Ensure the bot is an **admin** in the group
+- Verify the group is a **Supergroup** (not a regular group)
+- Check that the `MAIN_GROUP_ID` is correct (starts with `-100`)
 
-### Welcome messages not sending
-- Users may have privacy settings blocking bot DMs
-- The bot will fallback to in-group messages
+### Welcome messages not appearing
 - Check bot logs for errors
+- Verify `INTRO_TOPIC_ID` is correct (run `node scripts/get-topic-id.js`)
+- Ensure the bot has permission to send messages in the intro topic
 
-### Users still can't send messages after intro
-- Verify the bot has "Restrict members" permission
-- Check the intro was at least 50 characters long
-- Look at bot logs for validation errors
+### Auto-pin not working
+- Grant the bot **"Pin Messages"** permission in group admin settings
+
+### Users can't send messages after intro
+- Verify the bot has **"Restrict members"** permission
+- Check the intro was at least 50 characters and contained intro keywords (if validation enabled)
 - Try `/admin_approve <user_id>` to manually approve
 
-### Getting group/channel IDs
-- Use [@RawDataBot](https://t.me/rawdatabot) - add to group and send any message
-- Alternative: [@userinfobot](https://t.me/userinfobot) or [@getidsbot](https://t.me/getidsbot)
-- The ID will be negative and start with `-` (e.g., `-5178164012`)
-
-### Single vs Two-Group Setup
-- **Single group**: Leave `INTRO_CHANNEL_ID` blank - users post intros in main group
-- **Two groups**: Set both IDs - users post intros in separate channel
+### Getting IDs
+- **Group ID**: Add [@RawDataBot](https://t.me/rawdatabot) to your group
+- **Topic ID**: Run `node scripts/get-topic-id.js`
+- **User ID**: Use [@userinfobot](https://t.me/userinfobot) in DM
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions welcome! Please open an issue or PR.

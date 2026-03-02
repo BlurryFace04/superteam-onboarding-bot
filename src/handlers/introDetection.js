@@ -70,11 +70,12 @@ async function processIntro(ctx, messageText) {
       formatValid: formatResult.valid,
     });
 
+    const formatFields = config.introFormat.map(f => `• ${f}`).join('\n');
     let feedbackText;
     if (tooShort) {
-      feedbackText = `Hey ${userMention}! Your intro is too short (${messageText.length}/${config.validation.minIntroLength} characters). Please write a bit more about yourself!`;
+      feedbackText = `Hey ${userMention}! Your intro is too short (${messageText.length}/${config.validation.minIntroLength} characters). Please include:\n\n${formatFields}\n\nUse /example to see a sample intro!`;
     } else {
-      feedbackText = `Hey ${userMention}! That doesn't quite look like an introduction. 😅\n\nPlease include something like "I'm..." or "My name is..." so everyone knows who you are!\n\nUse /example to see a sample intro.`;
+      feedbackText = `Hey ${userMention}! That doesn't quite look like an introduction. 😅\n\nPlease include something like "I'm..." or "My name is..." and cover:\n\n${formatFields}\n\nUse /example to see a sample intro.`;
     }
 
     try {
