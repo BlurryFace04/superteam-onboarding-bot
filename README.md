@@ -8,6 +8,10 @@ A Telegram bot that ensures new members introduce themselves before participatin
 
 For full setup and deployment steps, see [`SETUP_DEPLOYMENT.md`](./SETUP_DEPLOYMENT.md).
 
+## Approach & Decisions
+
+For a breakdown of the technical decisions behind this bot, see [`APPROACH.md`](./APPROACH.md).
+
 ## Features
 
 ### Core Functionality
