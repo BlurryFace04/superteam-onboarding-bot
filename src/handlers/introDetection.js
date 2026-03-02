@@ -1,39 +1,131 @@
 import { config } from '../config.js';
 import { getUser, markUserIntroduced, isUserIntroduced, upsertUser } from '../database.js';
-import { isValidIntro, getIntroFeedback } from '../validation.js';
+import { isValidIntro } from '../validation.js';
 import { messages } from '../messages.js';
 import { logger } from '../logger.js';
 import { unrestrictUserInMainGroup } from './newMember.js';
 
+function isInIntroTopic(ctx) {
+  if (ctx.chat.id !== config.groups.introChannelId) return false;
+  if (config.groups.introTopicId !== null) {
+    return ctx.message.message_thread_id === config.groups.introTopicId;
+  }
+  return true;
+}
+
+async function processIntro(ctx, messageText) {
+  const user = ctx.from;
+  if (!user || user.is_bot) return;
+
+  const chatMember = await ctx.telegram.getChatMember(config.groups.mainGroupId, user.id);
+  if (['administrator', 'creator'].includes(chatMember.status)) return;
+
+  if (isUserIntroduced(user.id)) return;
+
+  upsertUser({
+    userId: user.id,
+    username: user.username,
+    firstName: user.first_name,
+    lastName: user.last_name,
+  });
+
+  const userName = user.first_name || 'there';
+
+  // Ignore bot commands - they shouldn't count as intro attempts
+  if (messageText.startsWith('/')) {
+    logger.debug('Ignoring bot command in intro topic', { userId: user.id, text: messageText });
+    return;
+  }
+
+  // No text at all (sticker, photo without caption, etc.)
+  if (!messageText || messageText.trim().length === 0) {
+    logger.info('Non-text message in intro topic', { userId: user.id });
+    try {
+      await ctx.reply(
+        `Hey ${userName}! Please write a text introduction — photos, stickers, and media alone don't count.\n\nUse /example to see the format!`,
+        { reply_to_message_id: ctx.message.message_id }
+      );
+    } catch (e) {
+      logger.warn('Could not send media feedback', { error: e.message });
+    }
+    return;
+  }
+
+  logger.info('Potential intro message received', { 
+    userId: user.id, 
+    username: user.username,
+    length: messageText.length 
+  });
+
+  // Too short
+  if (!isValidIntro(messageText)) {
+    logger.info('Intro too short', { 
+      userId: user.id, 
+      length: messageText.length,
+      required: config.validation.minIntroLength,
+    });
+    
+    try {
+      await ctx.reply(
+        `Hey ${userName}! Your message is a bit short (${messageText.length}/${config.validation.minIntroLength} characters).\n\nPlease include:\n• Who are you & what do you do?\n• Where are you based?\n• One fun fact about you\n• How are you looking to contribute to Superteam MY?\n\nUse /example to see a sample intro!`,
+        { reply_to_message_id: ctx.message.message_id }
+      );
+    } catch (e) {
+      logger.warn('Could not send intro feedback', { error: e.message });
+    }
+    return;
+  }
+
+  // Valid intro!
+  markUserIntroduced(user.id, ctx.message.message_id);
+  logger.info('User marked as introduced', { userId: user.id });
+
+  await unrestrictUserInMainGroup(ctx.telegram, user.id);
+
+  try {
+    await ctx.reply(
+      `🎉 Welcome aboard, ${userName}! Thanks for introducing yourself. You can now participate freely in the group!`,
+      { reply_to_message_id: ctx.message.message_id }
+    );
+  } catch (e) {
+    logger.debug('Could not reply with approval', { error: e.message });
+  }
+}
+
 export function setupIntroDetectionHandler(bot) {
+  // Handle new messages in intro topic
   bot.on('message', async (ctx, next) => {
     try {
-      if (ctx.chat.id !== config.groups.introChannelId) {
-        return next();
-      }
+      if (!isInIntroTopic(ctx)) return next();
 
-      // If using topics, only process messages in the intro topic
+      const messageText = ctx.message.text || ctx.message.caption || '';
+      await processIntro(ctx, messageText);
+    } catch (error) {
+      logger.error('Error in intro detection', { error: error.message });
+    }
+    return next();
+  });
+
+  // Handle edited messages - user might fix their intro
+  bot.on('edited_message', async (ctx, next) => {
+    try {
+      const msg = ctx.editedMessage;
+      if (!msg) return next();
+
+      if (msg.chat.id !== config.groups.introChannelId) return next();
+
       if (config.groups.introTopicId !== null) {
-        const messageTopicId = ctx.message.message_thread_id;
-        if (messageTopicId !== config.groups.introTopicId) {
-          return next();
-        }
-        logger.debug('Message in intro topic', { userId: ctx.from.id, topicId: messageTopicId });
+        if (msg.message_thread_id !== config.groups.introTopicId) return next();
       }
 
-      const user = ctx.from;
-      if (!user || user.is_bot) {
-        return next();
-      }
+      const user = msg.from;
+      if (!user || user.is_bot) return next();
+      if (isUserIntroduced(user.id)) return next();
 
-      const chatMember = await ctx.telegram.getChatMember(config.groups.mainGroupId, user.id);
-      if (['administrator', 'creator'].includes(chatMember.status)) {
-        return next();
-      }
+      const messageText = msg.text || msg.caption || '';
+      if (!isValidIntro(messageText)) return next();
 
-      if (isUserIntroduced(user.id)) {
-        return next();
-      }
+      logger.info('Valid intro detected via edit', { userId: user.id, length: messageText.length });
 
       upsertUser({
         userId: user.id,
@@ -42,74 +134,22 @@ export function setupIntroDetectionHandler(bot) {
         lastName: user.last_name,
       });
 
-      const messageText = ctx.message.text || ctx.message.caption || '';
-      
-      logger.info('Potential intro message received', { 
-        userId: user.id, 
-        username: user.username,
-        length: messageText.length 
-      });
-
-      if (!isValidIntro(messageText)) {
-        logger.info('Message too short or invalid for intro', { userId: user.id });
-        
-        const feedback = getIntroFeedback(messageText);
-        if (feedback && config.validation.enableFormatValidation) {
-          try {
-            const feedbackMsg = `Hey ${user.first_name || 'there'}! Your intro is a great start, but here are some suggestions:\n\n${feedback.map(f => `• ${f}`).join('\n')}\n\nFeel free to add more details!`;
-            
-            await ctx.reply(feedbackMsg, {
-              reply_to_message_id: ctx.message.message_id,
-            });
-          } catch (e) {
-            logger.debug('Could not send feedback', { error: e.message });
-          }
-        }
-        
-        return next();
-      }
-
-      markUserIntroduced(user.id, ctx.message.message_id);
-      logger.info('User marked as introduced', { userId: user.id });
-
-      const unrestricted = await unrestrictUserInMainGroup(ctx.telegram, user.id);
+      markUserIntroduced(user.id, msg.message_id);
+      await unrestrictUserInMainGroup(ctx.telegram, user.id);
 
       const userName = user.first_name || user.username || 'there';
-      
-      if (config.groups.useSingleGroup && unrestricted) {
-        try {
-          await ctx.reply(
-            `🎉 Welcome aboard, ${userName}! Thanks for introducing yourself. You can now participate freely in the group!`,
-            { reply_to_message_id: ctx.message.message_id }
-          );
-        } catch (e) {
-          logger.debug('Could not reply in group', { error: e.message });
-        }
-      } else {
-        try {
-          await ctx.telegram.sendMessage(
-            user.id,
-            messages.introCompleted(userName),
-            { parse_mode: 'Markdown' }
-          );
-        } catch (dmError) {
-          logger.debug('Could not DM intro completion', { error: dmError.message });
-        }
+      try {
+        await ctx.telegram.sendMessage(
+          config.groups.mainGroupId,
+          `🎉 Welcome aboard, ${userName}! Thanks for introducing yourself. You can now participate freely in the group!`,
+          config.groups.introTopicId ? { message_thread_id: config.groups.introTopicId } : {}
+        );
+      } catch (e) {
+        logger.debug('Could not send approval after edit', { error: e.message });
       }
-
     } catch (error) {
-      logger.error('Error in intro detection', { error: error.message });
+      logger.error('Error in edited message handler', { error: error.message });
     }
-    
     return next();
   });
-}
-
-export async function checkExistingIntro(telegram, userId) {
-  try {
-    return isUserIntroduced(userId);
-  } catch (error) {
-    logger.error('Error checking existing intro', { error: error.message });
-    return false;
-  }
 }

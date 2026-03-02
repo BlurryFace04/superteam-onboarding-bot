@@ -1,5 +1,5 @@
 import { config } from '../config.js';
-import { isUserIntroduced, getUser, upsertUser, updateLastReminded } from '../database.js';
+import { getUser, updateLastReminded } from '../database.js';
 import { messages } from '../messages.js';
 import { logger } from '../logger.js';
 import { isValidIntro } from '../validation.js';
@@ -8,6 +8,12 @@ export function setupAccessControlHandler(bot) {
   bot.on('message', async (ctx, next) => {
     try {
       if (ctx.chat.id !== config.groups.mainGroupId) {
+        return next();
+      }
+
+      // Ignore service messages (join/leave notifications, pinned messages, etc.)
+      if (ctx.message.left_chat_member || ctx.message.new_chat_members || 
+          ctx.message.pinned_message || ctx.message.group_chat_created) {
         return next();
       }
 
@@ -30,14 +36,18 @@ export function setupAccessControlHandler(bot) {
         return next();
       }
 
-      upsertUser({
-        userId: user.id,
-        username: user.username,
-        firstName: user.first_name,
-        lastName: user.last_name,
-      });
+      // Check if user exists in database
+      const userData = getUser(user.id);
+      
+      // If user is not in database, they joined before the bot was added
+      // Let them through without any restrictions (old members are grandfathered in)
+      if (!userData) {
+        logger.debug('User not in database (joined before bot), allowing', { userId: user.id });
+        return next();
+      }
 
-      if (isUserIntroduced(user.id)) {
+      // User is in database - check if they've introduced themselves
+      if (userData.intro_status === 'completed') {
         return next();
       }
 
@@ -66,7 +76,6 @@ export function setupAccessControlHandler(bot) {
         }
       }
 
-      const userData = getUser(user.id);
       const shouldRemind = shouldSendReminder(userData);
 
       if (shouldRemind) {

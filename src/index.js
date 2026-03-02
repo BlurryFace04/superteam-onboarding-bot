@@ -61,7 +61,7 @@ async function main() {
     });
 
     await bot.launch({
-      allowedUpdates: ['message', 'chat_member', 'my_chat_member'],
+      allowedUpdates: ['message', 'edited_message', 'chat_member', 'my_chat_member'],
     });
 
     logger.info('Bot is running! Press Ctrl+C to stop.');

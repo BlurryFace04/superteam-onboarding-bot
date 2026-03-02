@@ -3,6 +3,57 @@ import { upsertUser, isUserIntroduced } from '../database.js';
 import { messages } from '../messages.js';
 import { logger } from '../logger.js';
 
+async function sendWelcomeMessage(telegram, userId, userName) {
+  const sendOptions = {};
+  if (config.groups.introTopicId) {
+    sendOptions.message_thread_id = config.groups.introTopicId;
+  }
+
+  logger.info('Attempting to send welcome message', { userId, topicId: config.groups.introTopicId });
+
+  const welcomeText = messages.welcome(userName);
+  
+  // Try with Markdown first, fall back to plain text
+  try {
+    const msg = await telegram.sendMessage(
+      config.groups.mainGroupId,
+      welcomeText,
+      { ...sendOptions, parse_mode: 'Markdown' }
+    );
+    logger.info('Welcome message sent', { userId, messageId: msg.message_id });
+    
+    try {
+      await telegram.pinChatMessage(config.groups.mainGroupId, msg.message_id, { disable_notification: true });
+      logger.info('Welcome message pinned', { messageId: msg.message_id });
+    } catch (pinError) {
+      logger.debug('Could not pin welcome message', { error: pinError.message });
+    }
+
+    return msg;
+  } catch (markdownError) {
+    logger.warn('Markdown failed, trying plain text', { error: markdownError.message });
+    
+    try {
+      const plainText = welcomeText.replace(/\*/g, '');
+      const msg = await telegram.sendMessage(
+        config.groups.mainGroupId,
+        plainText,
+        sendOptions
+      );
+      logger.info('Welcome message sent (plain text)', { userId, messageId: msg.message_id });
+      return msg;
+    } catch (plainError) {
+      logger.error('Could not send welcome message at all', { 
+        userId, 
+        error: plainError.message,
+        groupId: config.groups.mainGroupId,
+        topicId: config.groups.introTopicId,
+      });
+      return null;
+    }
+  }
+}
+
 export function setupNewMemberHandler(bot) {
   bot.on('chat_member', async (ctx) => {
     try {
@@ -29,7 +80,7 @@ export function setupNewMemberHandler(bot) {
         return;
       }
 
-      logger.info('New member detected', { 
+      logger.info('New member detected (chat_member)', { 
         userId: user.id, 
         username: user.username,
         firstName: user.first_name 
@@ -47,59 +98,15 @@ export function setupNewMemberHandler(bot) {
         return;
       }
 
-      // In single-group mode, don't restrict - we'll delete non-intro messages instead
-      // This allows users to post their intro in the same group
       if (!config.groups.useSingleGroup) {
         await restrictUserInMainGroup(ctx, user.id);
       }
 
       const userName = user.first_name || user.username || 'there';
-      
-      try {
-        await ctx.telegram.sendMessage(
-          user.id,
-          messages.welcome(userName),
-          { parse_mode: 'Markdown' }
-        );
-        logger.info('Welcome DM sent', { userId: user.id });
-      } catch (dmError) {
-        logger.warn('Could not send DM, sending in-group message', { 
-          userId: user.id, 
-          error: dmError.message 
-        });
-        
-        try {
-          const sendOptions = { parse_mode: 'Markdown' };
-          if (config.groups.introTopicId) {
-            sendOptions.message_thread_id = config.groups.introTopicId;
-          }
-
-          const msg = await ctx.telegram.sendMessage(
-            config.groups.mainGroupId,
-            messages.welcome(userName),
-            sendOptions
-          );
-          logger.info('Welcome message sent in group', { 
-            userId: user.id, 
-            messageId: msg.message_id,
-            topicId: config.groups.introTopicId || 'none',
-          });
-          
-          // Keep the message for 5 minutes so user can read it
-          setTimeout(async () => {
-            try {
-              await ctx.telegram.deleteMessage(config.groups.mainGroupId, msg.message_id);
-            } catch (e) {
-              logger.debug('Could not delete welcome message', { error: e.message });
-            }
-          }, 300000);
-        } catch (groupError) {
-          logger.error('Could not send welcome message', { error: groupError.message });
-        }
-      }
+      await sendWelcomeMessage(ctx.telegram, user.id, userName);
 
     } catch (error) {
-      logger.error('Error handling new member', { error: error.message });
+      logger.error('Error handling new member (chat_member)', { error: error.message });
     }
   });
 
@@ -114,7 +121,7 @@ export function setupNewMemberHandler(bot) {
       for (const user of newMembers) {
         if (user.is_bot) continue;
 
-        logger.info('New member via new_chat_members', { 
+        logger.info('New member detected (new_chat_members)', { 
           userId: user.id, 
           username: user.username 
         });
@@ -127,29 +134,16 @@ export function setupNewMemberHandler(bot) {
         });
 
         if (!isUserIntroduced(user.id)) {
-          // In single-group mode, don't restrict - we'll delete non-intro messages instead
           if (!config.groups.useSingleGroup) {
             await restrictUserInMainGroup(ctx, user.id);
           }
           
           const userName = user.first_name || user.username || 'there';
-          
-          try {
-            await ctx.telegram.sendMessage(
-              user.id,
-              messages.welcome(userName),
-              { parse_mode: 'Markdown' }
-            );
-          } catch (e) {
-            logger.debug('Could not DM user from new_chat_members', { 
-              userId: user.id, 
-              error: e.message 
-            });
-          }
+          await sendWelcomeMessage(ctx.telegram, user.id, userName);
         }
       }
     } catch (error) {
-      logger.error('Error in new_chat_members handler', { error: error.message });
+      logger.error('Error handling new member (new_chat_members)', { error: error.message });
     }
   });
 }
