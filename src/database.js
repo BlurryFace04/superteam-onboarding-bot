@@ -158,3 +158,15 @@ export function closeDatabase() {
     db = null;
   }
 }
+
+export function resetDatabase() {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+  
+  // Delete all users
+  const deleteStmt = db.prepare('DELETE FROM users');
+  const result = deleteStmt.run();
+  
+  return result.changes;
+}

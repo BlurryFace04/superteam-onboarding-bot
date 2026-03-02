@@ -122,7 +122,8 @@ I help ensure all community members introduce themselves, making collaboration e
 /admin_approve <user_id> - Manually approve a user
 /admin_status <user_id> - Check a user's status
 /admin_stats - View bot statistics
-/admin_list_pending - List users pending intro`,
+/admin_list_pending - List users pending intro
+/admin_reset_db - ⚠️ Reset entire database (deletes all users)`,
 
     userReset: (userId) => `✅ User ${userId}'s intro status has been reset.`,
     userApproved: (userId) => `✅ User ${userId} has been manually approved.`,

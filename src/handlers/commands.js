@@ -7,7 +7,8 @@ import {
   manuallyApproveUser,
   getPendingUsers,
   getStats,
-  upsertUser 
+  upsertUser,
+  resetDatabase
 } from '../database.js';
 import { logger } from '../logger.js';
 import { unrestrictUserInMainGroup } from './newMember.js';
@@ -239,5 +240,23 @@ Completion Rate: ${stats.total > 0 ? ((stats.completed / stats.total) * 100).toF
     const msg = `⏳ *Pending Users* (${pending.length} total)\n\n${userList}${pending.length > 20 ? `\n\n...and ${pending.length - 20} more` : ''}`;
 
     await ctx.reply(msg, { parse_mode: 'Markdown' });
+  });
+
+  bot.command('admin_reset_db', async (ctx) => {
+    const userId = ctx.from.id;
+
+    if (!config.admin.userIds.includes(userId)) {
+      await ctx.reply(messages.admin.notAuthorized);
+      return;
+    }
+
+    try {
+      const deletedCount = resetDatabase();
+      logger.warn('Database reset by admin', { adminId: userId, deletedUsers: deletedCount });
+      await ctx.reply(`🗑️ Database reset complete. Deleted ${deletedCount} user(s).`);
+    } catch (error) {
+      logger.error('Failed to reset database', { error: error.message });
+      await ctx.reply(`❌ Failed to reset database: ${error.message}`);
+    }
   });
 }
