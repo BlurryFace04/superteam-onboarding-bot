@@ -1,5 +1,7 @@
 # Superteam Intro Gatekeeper Bot
 
+**Bot:** [@SuperteamOnboardingBot](https://t.me/SuperteamOnboardingBot)
+
 A Telegram bot that ensures new members introduce themselves before participating in the Superteam MY group.
 
 ## Setup & Deployment Guide

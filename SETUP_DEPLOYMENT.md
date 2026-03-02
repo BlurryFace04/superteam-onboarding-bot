@@ -1,5 +1,7 @@
 # Setup & Deployment Instructions
 
+**Bot:** [@SuperteamOnboardingBot](https://t.me/SuperteamOnboardingBot)
+
 This bot runs in a Telegram supergroup using an `Introductions` topic.
 
 ## 1) Prerequisites
