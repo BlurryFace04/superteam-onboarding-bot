@@ -16,18 +16,13 @@ Required bot permissions:
 
 ## 2) Get Required IDs
 
-Run the included ID detector script:
-
-```bash
-node scripts/get-ids.js
-```
-
-Then send a message **inside your Introductions topic** in the group. The bot will reply with:
-- `MAIN_GROUP_ID` — your group ID
-- `INTRO_TOPIC_ID` — the topic ID
-- `ADMIN_USER_IDS` — your user ID
-
-Copy these values into your `.env` file.
+1. Add the bot to your group, make it admin, and start it (`npm start`)
+2. Send `/id` **inside your Introductions topic**
+3. The bot replies with:
+   - `MAIN_GROUP_ID` — your group ID
+   - `INTRO_TOPIC_ID` — the topic ID
+   - `ADMIN_USER_IDS` — your user ID
+4. Copy these values into your `.env` file
 
 ## 3) Local Setup
 
