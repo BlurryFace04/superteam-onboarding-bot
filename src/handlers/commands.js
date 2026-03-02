@@ -134,34 +134,14 @@ function setupAdminCommands(bot) {
       targetUserId: user.user_id 
     });
 
+    // Unrestrict at Telegram level so they can post their new intro in the topic
     try {
-      await ctx.telegram.restrictChatMember(
-        config.groups.mainGroupId,
-        user.user_id,
-        {
-          permissions: {
-            can_send_messages: false,
-            can_send_audios: false,
-            can_send_documents: false,
-            can_send_photos: false,
-            can_send_videos: false,
-            can_send_video_notes: false,
-            can_send_voice_notes: false,
-            can_send_polls: false,
-            can_send_other_messages: false,
-            can_add_web_page_previews: false,
-            can_change_info: false,
-            can_invite_users: true,
-            can_pin_messages: false,
-            can_manage_topics: false,
-          },
-        }
-      );
+      await unrestrictUserInMainGroup(ctx.telegram, user.user_id);
     } catch (e) {
-      logger.debug('Could not restrict user after reset', { error: e.message });
+      logger.debug('Could not unrestrict user during reset', { error: e.message });
     }
 
-    await ctx.reply(`✅ ${formatUserRef(user)}'s intro status has been reset.`);
+    await ctx.reply(`✅ ${formatUserRef(user)}'s intro status has been reset. They must post a new intro in the Introductions topic.`);
   });
 
   bot.command('admin_approve', async (ctx) => {
