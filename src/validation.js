@@ -3,7 +3,7 @@ import { config } from './config.js';
 const INTRO_KEYWORDS = [
   'based', 'located', 'from',
   'contribute', 'looking', 'want', 'excited', 'connect', 'build', 'support', 'mentor', 'learn',
-  'i am', "i'm", 'im', 'name', 'hey', 'hello',
+  'i am', "i'm", 'im', 'name', 'hey', 'hello', 'hi',
   'building', 'developer', 'designer', 'founder', 'working', 'project', 'team', 'company'
 ];
 
