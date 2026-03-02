@@ -53,9 +53,7 @@ async function main() {
 
     logger.info('Configuration', {
       mainGroupId: config.groups.mainGroupId,
-      introChannelId: config.groups.introChannelId,
       introTopicId: config.groups.introTopicId,
-      useSingleGroup: config.groups.useSingleGroup,
       deleteUnauthorizedMessages: config.behavior.deleteUnauthorizedMessages,
       adminCount: config.admin.userIds.length,
     });

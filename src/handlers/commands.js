@@ -1,7 +1,8 @@
 import { config } from '../config.js';
 import { messages } from '../messages.js';
 import { 
-  getUser, 
+  getUser,
+  getUserByUsername,
   isUserIntroduced, 
   resetUserIntro, 
   manuallyApproveUser,
@@ -12,6 +13,22 @@ import {
 } from '../database.js';
 import { logger } from '../logger.js';
 import { unrestrictUserInMainGroup } from './newMember.js';
+
+function resolveUser(identifier) {
+  if (identifier.startsWith('@')) {
+    return getUserByUsername(identifier);
+  }
+  const numericId = parseInt(identifier, 10);
+  if (!isNaN(numericId)) {
+    return getUser(numericId);
+  }
+  return getUserByUsername(identifier);
+}
+
+function formatUserRef(user) {
+  if (user.username) return `@${user.username}`;
+  return `${user.first_name || 'User'} (${user.user_id})`;
+}
 
 export function setupCommandHandlers(bot) {
   bot.command('start', async (ctx) => {
@@ -64,6 +81,35 @@ function setupAdminCommands(bot) {
     await ctx.reply(messages.admin.help, { parse_mode: 'Markdown' });
   });
 
+  bot.command('id', async (ctx) => {
+    const chatId = ctx.chat.id;
+    const chatType = ctx.chat.type;
+    const chatTitle = ctx.chat.title || 'Private Chat';
+    const topicId = ctx.message.message_thread_id || null;
+    const userId = ctx.from.id;
+    const username = ctx.from.username ? `@${ctx.from.username}` : 'N/A';
+
+    const lines = [
+      `📍 *IDs*\n`,
+      `*Group ID:* \`${chatId}\``,
+      `*Chat Type:* ${chatType}`,
+      `*Chat Title:* ${chatTitle}`,
+    ];
+
+    if (topicId) {
+      lines.push(`*Topic ID:* \`${topicId}\``);
+    }
+
+    lines.push(`\n*Your User ID:* \`${userId}\``);
+    lines.push(`*Your Username:* ${username}`);
+
+    try {
+      await ctx.reply(lines.join('\n'), { parse_mode: 'Markdown' });
+    } catch {
+      await ctx.reply(lines.join('\n').replace(/[*`\\_]/g, ''));
+    }
+  });
+
   bot.command('admin_reset', async (ctx) => {
     if (!isAdmin(ctx.from.id)) {
       await ctx.reply(messages.admin.notAuthorized);
@@ -72,32 +118,26 @@ function setupAdminCommands(bot) {
 
     const args = ctx.message.text.split(' ');
     if (args.length < 2) {
-      await ctx.reply('Usage: /admin_reset <user_id>');
+      await ctx.reply('Usage: /admin\\_reset @username');
       return;
     }
 
-    const targetUserId = parseInt(args[1], 10);
-    if (isNaN(targetUserId)) {
-      await ctx.reply(messages.admin.invalidUserId);
-      return;
-    }
-
-    const user = getUser(targetUserId);
+    const user = resolveUser(args[1]);
     if (!user) {
-      await ctx.reply(messages.admin.userNotFound(targetUserId));
+      await ctx.reply(messages.admin.userNotFound(args[1]));
       return;
     }
 
-    resetUserIntro(targetUserId);
+    resetUserIntro(user.user_id);
     logger.info('Admin reset user intro', { 
       adminId: ctx.from.id, 
-      targetUserId 
+      targetUserId: user.user_id 
     });
 
     try {
       await ctx.telegram.restrictChatMember(
         config.groups.mainGroupId,
-        targetUserId,
+        user.user_id,
         {
           permissions: {
             can_send_messages: false,
@@ -121,7 +161,7 @@ function setupAdminCommands(bot) {
       logger.debug('Could not restrict user after reset', { error: e.message });
     }
 
-    await ctx.reply(messages.admin.userReset(targetUserId));
+    await ctx.reply(`✅ ${formatUserRef(user)}'s intro status has been reset.`);
   });
 
   bot.command('admin_approve', async (ctx) => {
@@ -132,32 +172,32 @@ function setupAdminCommands(bot) {
 
     const args = ctx.message.text.split(' ');
     if (args.length < 2) {
-      await ctx.reply('Usage: /admin_approve <user_id>');
+      await ctx.reply('Usage: /admin\\_approve @username');
       return;
     }
 
-    const targetUserId = parseInt(args[1], 10);
-    if (isNaN(targetUserId)) {
-      await ctx.reply(messages.admin.invalidUserId);
-      return;
+    let user = resolveUser(args[1]);
+    
+    if (!user) {
+      const numericId = parseInt(args[1], 10);
+      if (!isNaN(numericId)) {
+        upsertUser({ userId: numericId, username: null, firstName: null, lastName: null });
+        user = getUser(numericId);
+      } else {
+        await ctx.reply(messages.admin.userNotFound(args[1]));
+        return;
+      }
     }
 
-    upsertUser({
-      userId: targetUserId,
-      username: null,
-      firstName: null,
-      lastName: null,
-    });
-
-    manuallyApproveUser(targetUserId);
-    await unrestrictUserInMainGroup(ctx.telegram, targetUserId);
+    manuallyApproveUser(user.user_id);
+    await unrestrictUserInMainGroup(ctx.telegram, user.user_id);
     
     logger.info('Admin manually approved user', { 
       adminId: ctx.from.id, 
-      targetUserId 
+      targetUserId: user.user_id 
     });
 
-    await ctx.reply(messages.admin.userApproved(targetUserId));
+    await ctx.reply(`✅ ${formatUserRef(user)} has been manually approved.`);
   });
 
   bot.command('admin_status', async (ctx) => {
@@ -168,19 +208,13 @@ function setupAdminCommands(bot) {
 
     const args = ctx.message.text.split(' ');
     if (args.length < 2) {
-      await ctx.reply('Usage: /admin_status <user_id>');
+      await ctx.reply('Usage: /admin\\_status @username');
       return;
     }
 
-    const targetUserId = parseInt(args[1], 10);
-    if (isNaN(targetUserId)) {
-      await ctx.reply(messages.admin.invalidUserId);
-      return;
-    }
-
-    const user = getUser(targetUserId);
+    const user = resolveUser(args[1]);
     if (!user) {
-      await ctx.reply(messages.admin.userNotFound(targetUserId));
+      await ctx.reply(messages.admin.userNotFound(args[1]));
       return;
     }
 
@@ -234,7 +268,7 @@ Completion Rate: ${stats.total > 0 ? ((stats.completed / stats.total) * 100).toF
     const userList = pending.slice(0, 20).map((u, i) => {
       const name = u.first_name || u.username || 'Unknown';
       const username = u.username ? `@${u.username}` : '';
-      return `${i + 1}. ${name} ${username} (ID: \`${u.user_id}\`)`;
+      return `${i + 1}. ${name} ${username}`;
     }).join('\n');
 
     const msg = `⏳ *Pending Users* (${pending.length} total)\n\n${userList}${pending.length > 20 ? `\n\n...and ${pending.length - 20} more` : ''}`;

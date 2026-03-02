@@ -2,6 +2,10 @@
 
 A Telegram bot that ensures new members introduce themselves before participating in the Superteam MY group.
 
+## Setup & Deployment Guide
+
+For full setup and deployment steps, see [`SETUP_DEPLOYMENT.md`](./SETUP_DEPLOYMENT.md).
+
 ## Features
 
 ### Core Functionality
@@ -14,16 +18,14 @@ A Telegram bot that ensures new members introduce themselves before participatin
 
 ### Setup Modes
 - **Topics Mode** (Recommended): Uses a dedicated Introductions topic within the same supergroup
-- **Single Group Mode**: Users post intros in the same group
-- **Two Group Mode**: Separate intro channel for introductions
 
 ### Admin Features
 | Command | Description |
 |---------|-------------|
 | `/admin_help` | Show admin commands |
-| `/admin_reset <user_id>` | Reset a user's intro status |
-| `/admin_approve <user_id>` | Manually approve a user |
-| `/admin_status <user_id>` | View user's detailed status |
+| `/admin_reset @username` | Reset a user's intro status |
+| `/admin_approve @username` | Manually approve a user |
+| `/admin_status @username` | View user's detailed status |
 | `/admin_stats` | View bot statistics |
 | `/admin_list_pending` | List users awaiting intro |
 | `/admin_reset_db` | Reset entire database |
@@ -49,11 +51,17 @@ A Telegram bot that ensures new members introduce themselves before participatin
 2. Send `/newbot` and follow the prompts
 3. Copy the bot token
 
-### 2. Get Group & Topic IDs
+### 2. Get Group, Topic & Admin IDs
 
-1. Add [@RawDataBot](https://t.me/rawdatabot) to your Telegram group
-2. Send any message — the bot replies with your **chat ID** (e.g., `-1003502830299`)
-3. Run `node scripts/get-topic-id.js` to find your **Introductions topic ID**
+Run the ID detector script:
+
+```bash
+node scripts/get-ids.js
+```
+
+Then:
+1. Send a message **inside your Introductions topic** — the bot replies with your **Group ID**, **Topic ID**, and **Admin User ID**
+2. Copy these values into your `.env`
 
 ### 3. Configure Bot Permissions
 
@@ -122,13 +130,12 @@ docker compose down          # Stop
 |----------|----------|---------|-------------|
 | `BOT_TOKEN` | Yes | — | Telegram bot token from BotFather |
 | `MAIN_GROUP_ID` | Yes | — | ID of your Superteam supergroup |
-| `INTRO_TOPIC_ID` | No | — | Topic ID for Introductions (recommended) |
-| `INTRO_CHANNEL_ID` | No | same as main | Separate intro channel ID |
+| `INTRO_TOPIC_ID` | Yes | — | Topic ID for Introductions |
 | `INTRO_FORMAT` | No | See below | JSON array of intro format fields |
 | `DELETE_UNAUTHORIZED_MESSAGES` | No | `true` | Delete messages from non-introduced users |
 | `REMINDER_INTERVAL_HOURS` | No | `24` | Hours between reminder messages |
 | `MIN_INTRO_LENGTH` | No | `50` | Minimum characters for valid intro |
-| `ENABLE_FORMAT_VALIDATION` | No | `false` | Require self-introduction keywords |
+| `ENABLE_FORMAT_VALIDATION` | No | `true` | Require self-introduction keywords |
 | `ADMIN_USER_IDS` | No | — | Comma-separated admin user IDs |
 | `DATABASE_PATH` | No | `./data/bot.db` | SQLite database location |
 | `LOG_LEVEL` | No | `info` | Logging level (debug/info/warn/error) |
@@ -155,6 +162,7 @@ INTRO_FORMAT=["Your name and role","Your location","A fun fact","How you want to
 | `/help` | Show help and available commands |
 | `/example` | See an example introduction |
 | `/status` | Check your introduction status |
+| `/id` | Show group ID, topic ID, and your user ID |
 
 ## How It Works
 
@@ -185,13 +193,10 @@ INTRO_FORMAT=["Your name and role","Your location","A fun fact","How you want to
 | **Deleted intro** | User stays approved; admin can reset via `/admin_reset` |
 | **Bot restart** | All data persists in SQLite database |
 | **Admin bypass** | Group admins/creators are never restricted |
-| **Service messages** | Join/leave/pin notifications are not deleted |
 | **Media-only intro** | Bot asks for a text introduction |
 | **Bot commands in intro topic** | Commands like `/example` don't count as intro attempts |
 | **Edited messages** | If a user edits their message to meet requirements, it's accepted |
-| **Markdown failures** | Falls back to plain text if formatting fails |
-| **Users joined before bot** | Grandfathered in — not restricted |
-| **Duplicate join events** | Handled gracefully via database upsert |
+| **Users joined before bot** | not restricted |
 
 ## Project Structure
 
@@ -211,13 +216,9 @@ superteam-onboarding-bot/
 │       ├── accessControl.js  # Message restriction enforcement
 │       └── commands.js       # User + admin commands
 ├── scripts/
-│   ├── get-ids.js            # Utility to get chat/user IDs
-│   ├── get-topic-id.js       # Utility to get topic IDs
+│   ├── get-ids.js            # Get group ID, topic ID, and admin user ID
 │   └── reset-db.js           # Database reset script
-├── docs/
-│   ├── EDGE_CASES.md         # Detailed edge case documentation
-│   ├── GETTING_IDS.md        # Guide for obtaining Telegram IDs
-│   └── QUICK_START.md        # Step-by-step setup guide
+├── SETUP_DEPLOYMENT.md       # Setup + deployment instructions
 ├── .env.example              # Environment variable template
 ├── Dockerfile                # Docker container configuration
 ├── docker-compose.yml        # Docker Compose for local deployment
@@ -234,7 +235,7 @@ superteam-onboarding-bot/
 
 ### Welcome messages not appearing
 - Check bot logs for errors
-- Verify `INTRO_TOPIC_ID` is correct (run `node scripts/get-topic-id.js`)
+- Verify `INTRO_TOPIC_ID` is correct (run `node scripts/get-ids.js`)
 - Ensure the bot has permission to send messages in the intro topic
 
 ### Auto-pin not working
@@ -244,11 +245,6 @@ superteam-onboarding-bot/
 - Verify the bot has **"Restrict members"** permission
 - Check the intro was at least 50 characters and contained intro keywords (if validation enabled)
 - Try `/admin_approve <user_id>` to manually approve
-
-### Getting IDs
-- **Group ID**: Add [@RawDataBot](https://t.me/rawdatabot) to your group
-- **Topic ID**: Run `node scripts/get-topic-id.js`
-- **User ID**: Use [@userinfobot](https://t.me/userinfobot) in DM
 
 ## License
 

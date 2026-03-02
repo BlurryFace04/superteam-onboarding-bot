@@ -2,7 +2,6 @@ import { config } from '../config.js';
 import { getUser, updateLastReminded } from '../database.js';
 import { messages, formatMention } from '../messages.js';
 import { logger } from '../logger.js';
-import { isValidIntro } from '../validation.js';
 
 export function setupAccessControlHandler(bot) {
   bot.on('message', async (ctx, next) => {
@@ -55,14 +54,6 @@ export function setupAccessControlHandler(bot) {
         userId: user.id, 
         username: user.username 
       });
-
-      if (config.groups.useSingleGroup) {
-        const messageText = ctx.message.text || ctx.message.caption || '';
-        if (isValidIntro(messageText)) {
-          logger.info('Allowing potential intro message through', { userId: user.id });
-          return next();
-        }
-      }
 
       if (config.behavior.deleteUnauthorizedMessages) {
         try {

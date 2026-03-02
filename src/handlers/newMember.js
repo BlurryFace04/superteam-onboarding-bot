@@ -105,10 +105,6 @@ export function setupNewMemberHandler(bot) {
         return;
       }
 
-      if (!config.groups.useSingleGroup) {
-        await restrictUserInMainGroup(ctx, user.id);
-      }
-
       await sendWelcomeMessage(ctx.telegram, user);
 
     } catch (error) {
@@ -140,10 +136,6 @@ export function setupNewMemberHandler(bot) {
         });
 
         if (!isUserIntroduced(user.id)) {
-          if (!config.groups.useSingleGroup) {
-            await restrictUserInMainGroup(ctx, user.id);
-          }
-          
           await sendWelcomeMessage(ctx.telegram, user);
         }
       }
@@ -151,36 +143,6 @@ export function setupNewMemberHandler(bot) {
       logger.error('Error handling new member (new_chat_members)', { error: error.message });
     }
   });
-}
-
-async function restrictUserInMainGroup(ctx, userId) {
-  try {
-    await ctx.telegram.restrictChatMember(
-      config.groups.mainGroupId,
-      userId,
-      {
-        permissions: {
-          can_send_messages: false,
-          can_send_audios: false,
-          can_send_documents: false,
-          can_send_photos: false,
-          can_send_videos: false,
-          can_send_video_notes: false,
-          can_send_voice_notes: false,
-          can_send_polls: false,
-          can_send_other_messages: false,
-          can_add_web_page_previews: false,
-          can_change_info: false,
-          can_invite_users: true,
-          can_pin_messages: false,
-          can_manage_topics: false,
-        },
-      }
-    );
-    logger.info('User restricted in main group', { userId });
-  } catch (error) {
-    logger.error('Failed to restrict user', { userId, error: error.message });
-  }
 }
 
 export async function unrestrictUserInMainGroup(telegram, userId) {

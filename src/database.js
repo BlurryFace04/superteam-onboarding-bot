@@ -48,6 +48,12 @@ export function getUser(userId) {
   return stmt.get(userId);
 }
 
+export function getUserByUsername(username) {
+  const cleanUsername = username.replace(/^@/, '').toLowerCase();
+  const stmt = db.prepare('SELECT * FROM users WHERE LOWER(username) = ?');
+  return stmt.get(cleanUsername);
+}
+
 export function upsertUser(userData) {
   const stmt = db.prepare(`
     INSERT INTO users (user_id, username, first_name, last_name, joined_at, updated_at)

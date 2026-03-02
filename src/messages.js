@@ -99,6 +99,7 @@ I help ensure all community members introduce themselves, making collaboration e
 /help - Show this help message
 /example - See an example introduction
 /status - Check your introduction status
+/id - Show group ID, topic ID, and your user ID
 
 *How it works:*
 1. Post your introduction ${introLocation} (at least 50 characters)
@@ -119,18 +120,15 @@ I help ensure all community members introduce themselves, making collaboration e
   admin: {
     help: `🔧 *Admin Commands*
 
-/admin_reset <user_id> - Reset a user's intro status
-/admin_approve <user_id> - Manually approve a user
-/admin_status <user_id> - Check a user's status
+/admin_reset @username - Reset a user's intro status
+/admin_approve @username - Manually approve a user
+/admin_status @username - Check a user's status
 /admin_stats - View bot statistics
 /admin_list_pending - List users pending intro
 /admin_reset_db - ⚠️ Reset entire database (deletes all users)`,
 
-    userReset: (userId) => `✅ User ${userId}'s intro status has been reset.`,
-    userApproved: (userId) => `✅ User ${userId} has been manually approved.`,
-    userNotFound: (userId) => `❌ User ${userId} not found in database.`,
+    userNotFound: (identifier) => `❌ User "${identifier}" not found in database.`,
     notAuthorized: `❌ You are not authorized to use admin commands.`,
-    invalidUserId: `❌ Invalid user ID. Please provide a numeric user ID.`,
   },
 
   errors: {

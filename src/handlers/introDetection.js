@@ -6,11 +6,8 @@ import { logger } from '../logger.js';
 import { unrestrictUserInMainGroup } from './newMember.js';
 
 function isInIntroTopic(ctx) {
-  if (ctx.chat.id !== config.groups.introChannelId) return false;
-  if (config.groups.introTopicId !== null) {
-    return ctx.message.message_thread_id === config.groups.introTopicId;
-  }
-  return true;
+  if (ctx.chat.id !== config.groups.mainGroupId) return false;
+  return ctx.message.message_thread_id === config.groups.introTopicId;
 }
 
 async function processIntro(ctx, messageText) {
@@ -122,11 +119,8 @@ export function setupIntroDetectionHandler(bot) {
       const msg = ctx.editedMessage;
       if (!msg) return next();
 
-      if (msg.chat.id !== config.groups.introChannelId) return next();
-
-      if (config.groups.introTopicId !== null) {
-        if (msg.message_thread_id !== config.groups.introTopicId) return next();
-      }
+      if (msg.chat.id !== config.groups.mainGroupId) return next();
+      if (msg.message_thread_id !== config.groups.introTopicId) return next();
 
       const user = msg.from;
       if (!user || user.is_bot) return next();

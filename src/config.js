@@ -48,11 +48,7 @@ export const config = {
   
   groups: {
     mainGroupId: parseInt(requireEnv('MAIN_GROUP_ID'), 10),
-    introChannelId: process.env.INTRO_CHANNEL_ID 
-      ? parseInt(process.env.INTRO_CHANNEL_ID, 10) 
-      : parseInt(requireEnv('MAIN_GROUP_ID'), 10),
-    introTopicId: process.env.INTRO_TOPIC_ID ? parseInt(process.env.INTRO_TOPIC_ID, 10) : null,
-    useSingleGroup: !process.env.INTRO_CHANNEL_ID || process.env.INTRO_CHANNEL_ID === process.env.MAIN_GROUP_ID,
+    introTopicId: parseInt(requireEnv('INTRO_TOPIC_ID'), 10),
   },
   
   behavior: {
