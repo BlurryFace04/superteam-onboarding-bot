@@ -16,9 +16,11 @@ Required bot permissions:
 
 ## 2) Get Required IDs
 
-1. Add the bot to your group, make it admin, and start it (`npm start`)
-2. Send `/id` **inside your Introductions topic**
-3. The bot replies with:
+**Option A — Bot command:** Start the bot and send `/id` inside your Introductions topic
+
+**Option B — Script:** Run `node scripts/get-ids.js` and send a message in the topic
+
+Both return:
    - `MAIN_GROUP_ID` — your group ID
    - `INTRO_TOPIC_ID` — the topic ID
    - `ADMIN_USER_IDS` — your user ID

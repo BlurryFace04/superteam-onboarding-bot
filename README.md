@@ -53,10 +53,11 @@ For full setup and deployment steps, see [`SETUP_DEPLOYMENT.md`](./SETUP_DEPLOYM
 
 ### 2. Get Group, Topic & Admin IDs
 
-1. Add your bot to the group and start it (`npm start`)
-2. Send `/id` **inside your Introductions topic**
-3. The bot replies with your **Group ID**, **Topic ID**, and **Admin User ID**
-4. Copy these values into your `.env`
+**Option A — Bot command:** Send `/id` inside your Introductions topic (requires bot to be running)
+
+**Option B — Script:** Run `node scripts/get-ids.js` and send a message in the topic
+
+Both will return your **Group ID**, **Topic ID**, and **Admin User ID**. Copy these values into your `.env`.
 
 ### 3. Configure Bot Permissions
 
@@ -230,7 +231,7 @@ superteam-onboarding-bot/
 
 ### Welcome messages not appearing
 - Check bot logs for errors
-- Verify `INTRO_TOPIC_ID` is correct (send `/id` inside the intro topic)
+- Verify `INTRO_TOPIC_ID` is correct (send `/id` in the intro topic or run `node scripts/get-ids.js`)
 - Ensure the bot has permission to send messages in the intro topic
 
 ### Auto-pin not working
