@@ -24,17 +24,6 @@ async function sendWelcomeMessage(telegram, user) {
       { ...sendOptions, parse_mode: 'HTML' }
     );
     logger.info('Welcome message sent', { userId, messageId: msg.message_id });
-    
-    try {
-      const pinOptions = { disable_notification: true };
-      if (config.groups.introTopicId) {
-        pinOptions.message_thread_id = config.groups.introTopicId;
-      }
-      await telegram.pinChatMessage(config.groups.mainGroupId, msg.message_id, pinOptions);
-      logger.info('Welcome message pinned', { messageId: msg.message_id });
-    } catch (pinError) {
-      logger.warn('Could not pin welcome message (does the bot have "Pin Messages" permission?)', { error: pinError.message });
-    }
 
     return msg;
   } catch (markdownError) {

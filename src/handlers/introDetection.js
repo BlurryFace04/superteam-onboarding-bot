@@ -89,6 +89,18 @@ async function processIntro(ctx, messageText) {
 
   await unrestrictUserInMainGroup(ctx.telegram, user.id);
 
+  // Pin the user's intro message
+  try {
+    await ctx.telegram.pinChatMessage(
+      ctx.chat.id,
+      ctx.message.message_id,
+      { disable_notification: true }
+    );
+    logger.info('User intro pinned', { userId: user.id, messageId: ctx.message.message_id });
+  } catch (e) {
+    logger.debug('Could not pin intro message', { error: e.message });
+  }
+
   try {
     await ctx.reply(
       `🎉 Welcome aboard, ${userMention}! Thanks for introducing yourself. You can now participate freely in the group!`,
@@ -140,6 +152,14 @@ export function setupIntroDetectionHandler(bot) {
 
       markUserIntroduced(user.id, msg.message_id);
       await unrestrictUserInMainGroup(ctx.telegram, user.id);
+
+      // Pin the user's intro message
+      try {
+        await ctx.telegram.pinChatMessage(msg.chat.id, msg.message_id, { disable_notification: true });
+        logger.info('User intro pinned (via edit)', { userId: user.id, messageId: msg.message_id });
+      } catch (e) {
+        logger.debug('Could not pin intro message after edit', { error: e.message });
+      }
 
       const displayName = user.first_name || 'there';
       const userMention = formatMention(user.id, displayName, user.username);
